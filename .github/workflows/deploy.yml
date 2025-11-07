@@ -1,8 +1,6 @@
-name: Build and Upload Docker Image to EC2
+name: package
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +15,8 @@ env:
   SSH_KEY_PATH: MonarchCloud.pem
 
 jobs:
-  build-and-upload:
+  package:
+    name: package
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,5 +60,4 @@ jobs:
       - name: Load image on EC2
         run: |
           ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
-            "docker load -i /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && rm -f /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && docker images | grep ${IMAGE_NAME}"
-
+            "sudo docker load -i /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && rm -f /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && sudo docker images | grep ${IMAGE_NAME}"
