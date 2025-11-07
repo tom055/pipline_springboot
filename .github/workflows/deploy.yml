@@ -67,15 +67,14 @@ jobs:
       - name: Run container on EC2
         run: |
           ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ${SSH_USERNAME}@${SSH_HOST} \
-            "set -euo pipefail; \
+            "bash -lc 'set -euo pipefail; \
              IMG=\"${APP_IMAGE}:${APP_VERSION}\"; \
              NAME=\"${APP_NAME}\"; \
-             MOUNT_DIR=\"/opt/docker/pip/resources\"; \
-             sudo mkdir -p \"$MOUNT_DIR\"; \
-             if sudo docker ps -a --format '{{{{.Names}}}}' | grep -wq \"$NAME\"; then \
-               echo 'Container exists, stopping/removing...'; \
+             sudo mkdir -p /opt/docker/pip/resources; \
+             if sudo docker ps -a --format {{.Names}} | grep -wq \"$NAME\"; then \
+               echo Container exists, stopping/removing...; \
                sudo docker rm -f \"$NAME\" || true; \
              fi; \
-             echo Running $NAME from $IMG; \
-             sudo docker run -d --name \"$NAME\" -p 3030:3030 -v \"$MOUNT_DIR\":/opt/app/resources --restart unless-stopped \"$IMG\"; \
-             sudo docker ps --filter name=\"$NAME\" --format 'running: {{.Names}} -> {{.Image}}'"
+             echo Running \"$NAME\" from \"$IMG\"; \
+             sudo docker run -d --name \"$NAME\" -p 3030:3030 -v /opt/docker/pip/resources:/opt/app/resources --restart unless-stopped \"$IMG\"; \
+             sudo docker ps --filter name=\"$NAME\" --format \"running: {{.Names}} -> {{.Image}}\"'"
