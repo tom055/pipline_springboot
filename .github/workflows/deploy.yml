@@ -8,11 +8,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: pipboot
-  IMAGE_TAG: 1.0.0
-  EC2_USER: ec2-user
-  EC2_HOST: 44.210.118.83
-  SSH_KEY_PATH: MonarchCloud.pem
+  APP_IMAGE: ${{ secrets.APP_IMAGE || vars.APP_IMAGE }}
+  APP_VERSION: ${{ secrets.APP_VERSION || vars.APP_VERSION }}
+  SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+  SSH_HOST: ${{ secrets.SSH_HOST }}
 
 jobs:
   package:
@@ -42,22 +41,24 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+          docker build -t ${APP_IMAGE}:${APP_VERSION} .
 
       - name: Save Docker image as tarball
         run: |
-          docker save ${IMAGE_NAME}:${IMAGE_TAG} -o ${IMAGE_NAME}_${IMAGE_TAG}.tar
+          docker save ${APP_IMAGE}:${APP_VERSION} -o ${APP_IMAGE}_${APP_VERSION}.tar
 
-      - name: Prepare SSH key
+      - name: Prepare SSH key from secret
         run: |
-          test -f "$SSH_KEY_PATH" || { echo "SSH key $SSH_KEY_PATH not found"; exit 1; }
-          chmod 600 "$SSH_KEY_PATH"
+          KEY_FILE="$RUNNER_TEMP/ssh_key"
+          printf "%s" "${{ secrets.SSH_PRIVATE_KEY }}" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          echo "KEY_FILE=$KEY_FILE" >> $GITHUB_ENV
 
       - name: Transfer image to EC2
         run: |
-          scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no ${IMAGE_NAME}_${IMAGE_TAG}.tar ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar
+          scp -i "$KEY_FILE" -o StrictHostKeyChecking=no ${APP_IMAGE}_${APP_VERSION}.tar ${SSH_USERNAME}@${SSH_HOST}:/home/${SSH_USERNAME}/${APP_IMAGE}_${APP_VERSION}.tar
 
       - name: Load image on EC2
         run: |
-          ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
-            "sudo docker load -i /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && rm -f /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && sudo docker images | grep ${IMAGE_NAME}"
+          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ${SSH_USERNAME}@${SSH_HOST} \
+            "sudo docker load -i /home/${SSH_USERNAME}/${APP_IMAGE}_${APP_VERSION}.tar && rm -f /home/${SSH_USERNAME}/${APP_IMAGE}_${APP_VERSION}.tar && sudo docker images | grep ${APP_IMAGE}"
