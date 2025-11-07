@@ -1,5 +1,5 @@
-# 使用OpenJDK 8作为基础镜像
-FROM openjdk:8
+# 使用仍在维护的 OpenJDK 8 运行时镜像（Eclipse Temurin）FROM openjdk:8
+FROM eclipse-temurin:8-jre
 
 RUN ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime && \
     echo "America/New_York" > /etc/timezone
