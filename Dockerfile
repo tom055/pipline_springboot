@@ -17,7 +17,7 @@ COPY target/resources ./resources/
 COPY target/pipline.jar ./
 
 # 暴露容器的3000端口
-EXPOSE 9100
+EXPOSE 3030
 
 # 容器启动时执行的命令--add-opens java.base/java.lang=ALL-UNNAMED
 ENTRYPOINT ["java", "-Xmx2G","-Xms512M", "-jar", "pipline.jar"]

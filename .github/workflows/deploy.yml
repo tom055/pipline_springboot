@@ -10,6 +10,7 @@ concurrency:
 env:
   APP_IMAGE: ${{ secrets.APP_IMAGE || vars.APP_IMAGE }}
   APP_VERSION: ${{ secrets.APP_VERSION || vars.APP_VERSION }}
+  APP_NAME: ${{ secrets.APP_NAME || vars.APP_NAME }}
   SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
   SSH_HOST: ${{ secrets.SSH_HOST }}
 
@@ -62,3 +63,19 @@ jobs:
         run: |
           ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ${SSH_USERNAME}@${SSH_HOST} \
             "sudo docker load -i /home/${SSH_USERNAME}/${APP_IMAGE}_${APP_VERSION}.tar && rm -f /home/${SSH_USERNAME}/${APP_IMAGE}_${APP_VERSION}.tar && sudo docker images | grep ${APP_IMAGE}"
+
+      - name: Run container on EC2
+        run: |
+          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ${SSH_USERNAME}@${SSH_HOST} \
+            "set -euo pipefail; \
+             IMG=\"${APP_IMAGE}:${APP_VERSION}\"; \
+             NAME=\"${APP_NAME}\"; \
+             MOUNT_DIR=\"/opt/docker/pip/resources\"; \
+             sudo mkdir -p \"$MOUNT_DIR\"; \
+             if sudo docker ps -a --format '{{{{.Names}}}}' | grep -wq \"$NAME\"; then \
+               echo 'Container exists, stopping/removing...'; \
+               sudo docker rm -f \"$NAME\" || true; \
+             fi; \
+             echo Running $NAME from $IMG; \
+             sudo docker run -d --name \"$NAME\" -p 3030:3030 -v \"$MOUNT_DIR\":/opt/app/resources --restart unless-stopped \"$IMG\"; \
+             sudo docker ps --filter name=\"$NAME\" --format 'running: {{.Names}} -> {{.Image}}'"
