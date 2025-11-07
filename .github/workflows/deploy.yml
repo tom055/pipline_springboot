@@ -1,0 +1,65 @@
+name: Build and Upload Docker Image to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-pipboot
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: pipboot
+  IMAGE_TAG: 1.0.0
+  EC2_USER: ec2-user
+  EC2_HOST: 44.210.118.83
+  SSH_KEY_PATH: MonarchCloud.pem
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build with Maven
+        run: mvn -B -DskipTests package
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+
+      - name: Save Docker image as tarball
+        run: |
+          docker save ${IMAGE_NAME}:${IMAGE_TAG} -o ${IMAGE_NAME}_${IMAGE_TAG}.tar
+
+      - name: Prepare SSH key
+        run: |
+          test -f "$SSH_KEY_PATH" || { echo "SSH key $SSH_KEY_PATH not found"; exit 1; }
+          chmod 600 "$SSH_KEY_PATH"
+
+      - name: Transfer image to EC2
+        run: |
+          scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no ${IMAGE_NAME}_${IMAGE_TAG}.tar ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar
+
+      - name: Load image on EC2
+        run: |
+          ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
+            "docker load -i /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && rm -f /home/${EC2_USER}/${IMAGE_NAME}_${IMAGE_TAG}.tar && docker images | grep ${IMAGE_NAME}"
+
