@@ -68,8 +68,8 @@ jobs:
         run: |
           ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ${SSH_USERNAME}@${SSH_HOST} \
             "bash -lc 'set -euo pipefail; \
-             IMG=\"${APP_IMAGE}:${APP_VERSION}\"; \
-             NAME=\"${APP_NAME}\"; \
+             IMG=\"${{ secrets.APP_IMAGE || vars.APP_IMAGE }}:${{ secrets.APP_VERSION || vars.APP_VERSION }}\"; \
+             NAME=\"${{ secrets.APP_NAME || vars.APP_NAME }}\"; \
              sudo mkdir -p /opt/docker/pip/resources; \
              if sudo docker ps -a --format {{.Names}} | grep -wq \"$NAME\"; then \
                echo Container exists, stopping/removing...; \
