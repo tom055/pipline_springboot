@@ -49,6 +49,17 @@ jobs:
         run: |
           docker save ${APP_IMAGE}:${APP_VERSION} -o ${APP_IMAGE}_${APP_VERSION}.tar
 
+      - name: Debug variables (runner)
+        run: |
+          echo "APP_IMAGE=$APP_IMAGE"
+          echo "APP_VERSION=$APP_VERSION"
+          echo "APP_NAME=$APP_NAME"
+          echo "APP_RESOURCES=$APP_RESOURCES"
+          echo "vars.APP_IMAGE=${{ vars.APP_IMAGE }}"
+          echo "vars.APP_VERSION=${{ vars.APP_VERSION }}"
+          echo "vars.APP_NAME=${{ vars.APP_NAME }}"
+          echo "vars.APP_RESOURCES=${{ vars.APP_RESOURCES }}"
+
       - name: Prepare SSH key from secret
         run: |
           KEY_FILE="$RUNNER_TEMP/ssh_key"
@@ -69,9 +80,9 @@ jobs:
         run: |
           ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ${SSH_USERNAME}@${SSH_HOST} \
             "bash -lc 'set -euo pipefail; \
-             IMG=\"${{ secrets.APP_IMAGE || vars.APP_IMAGE }}:${{ secrets.APP_VERSION || vars.APP_VERSION }}\"; \
-             NAME=\"${{ secrets.APP_NAME || vars.APP_NAME }}\"; \
-             RES=\"${{ secrets.APP_RESOURCES || vars.APP_RESOURCES }}\"; \
+             IMG=\"${APP_IMAGE}:${APP_VERSION}\"; \
+             NAME=\"${APP_NAME}\"; \
+             RES=\"${APP_RESOURCES}\"; \
              if [ -z \"$NAME\" ] || [ -z \"$IMG\" ]; then \
                echo \"ERROR: NAME or IMG is empty.\"; \
                echo \"NAME=[$NAME]\"; echo \"IMG=[$IMG]\"; \
@@ -90,4 +101,3 @@ jobs:
              printf 'sudo docker run -d --name %q -p 3030:3030 -v %q:/opt/app/resources --restart unless-stopped %q\\n' \"$NAME\" \"$RES\" \"$IMG\"; \
              sudo docker run -d --name \"$NAME\" -p 3030:3030 -v \"$RES\":/opt/app/resources --restart unless-stopped \"$IMG\"; \
              sudo docker ps --filter name=\"$NAME\" --format \"running: {{.Names}} -> {{.Image}}\"'"
-
