@@ -91,13 +91,16 @@ jobs:
 
       - name: Create remote run script
         run: |
-          # Generate a pre-expanded remote script (variables expand here on runner)
-          cat > "$RUNNER_TEMP/remote_deploy.sh" <<EOF
+          # Generate a remote script with values embedded via GitHub expressions
+          # This avoids relying on shell-side expansion at runtime on the remote host.
+          cat > "$RUNNER_TEMP/remote_deploy.sh" <<'EOF'
           set -euo pipefail
-          NAME="${APP_NAME}"
-          IMG="${APP_IMAGE}:${APP_VERSION}"
-          RES="${APP_RESOURCES:-}"
-          if [ -z "${APP_RESOURCES:-}" ]; then
+
+          NAME="${{ env.APP_NAME }}"
+          IMG="${{ env.APP_IMAGE }}:${{ env.APP_VERSION }}"
+          RES="${{ env.APP_RESOURCES }}"
+
+          if [ -z "$RES" ]; then
             echo "WARNING: APP_RESOURCES empty. Using default /opt/docker/pip/resources." >&2
             RES=/opt/docker/pip/resources
           fi
@@ -137,4 +140,4 @@ jobs:
       - name: Upload and run on EC2
         run: |
           scp -i "$KEY_FILE" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$RUNNER_TEMP/remote_deploy.sh" ${SSH_USERNAME}@${SSH_HOST}:/home/${SSH_USERNAME}/remote_deploy.sh
-          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${SSH_USERNAME}@${SSH_HOST} "bash -lc 'sudo bash /home/${SSH_USERNAME}/remote_deploy.sh'"
+          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${SSH_USERNAME}@${SSH_HOST} "sudo bash /home/${SSH_USERNAME}/remote_deploy.sh"
