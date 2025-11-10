@@ -11,6 +11,7 @@ env:
   APP_IMAGE: ${{ secrets.APP_IMAGE || vars.APP_IMAGE }}
   APP_VERSION: ${{ secrets.APP_VERSION || vars.APP_VERSION }}
   APP_NAME: ${{ secrets.APP_NAME || vars.APP_NAME }}
+  APP_RESOURCES: ${{ secrets.APP_RESOURCES || vars.APP_RESOURCES }}
   SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
   SSH_HOST: ${{ secrets.SSH_HOST }}
 
@@ -70,18 +71,23 @@ jobs:
             "bash -lc 'set -euo pipefail; \
              IMG=\"${{ secrets.APP_IMAGE || vars.APP_IMAGE }}:${{ secrets.APP_VERSION || vars.APP_VERSION }}\"; \
              NAME=\"${{ secrets.APP_NAME || vars.APP_NAME }}\"; \
-             sudo mkdir -p /opt/docker/pip/resources; \
-             if sudo docker ps -a --format {{.Names}} | grep -wq \"$NAME\"; then \
-               echo Container exists, stopping/removing...; \
-               sudo docker rm -f \"$NAME\" || true; \
-             fi; \
-             echo Running \"$NAME\" from \"$IMG\"; \
+             RES=\"${{ secrets.APP_RESOURCES || vars.APP_RESOURCES }}\"; \
              if [ -z \"$NAME\" ] || [ -z \"$IMG\" ]; then \
                echo \"ERROR: NAME or IMG is empty.\"; \
                echo \"NAME=[$NAME]\"; echo \"IMG=[$IMG]\"; \
                exit 1; \
              fi; \
-             echo \"Resolved NAME=[$NAME]\"; echo \"Resolved IMG=[$IMG]\"; \
-             printf 'sudo docker run -d --name %q -p 3030:3030 -v /opt/docker/pip/resources:/opt/app/resources --restart unless-stopped %q\n' \"$NAME\" \"$IMG\"; \
-             sudo docker run -d --name \"$NAME\" -p 3030:3030 -v /opt/docker/pip/resources:/opt/app/resources --restart unless-stopped \"$IMG\"; \
+             if [ -z \"$RES\" ]; then \
+               echo \"WARNING: APP_RESOURCES is empty. Using default /opt/docker/pip/resources.\"; \
+               RES=/opt/docker/pip/resources; \
+             fi; \
+             sudo mkdir -p \"$RES\"; \
+             if sudo docker ps -a --format {{.Names}} | grep -wq \"$NAME\"; then \
+               echo Container exists, stopping/removing...; \
+               sudo docker rm -f \"$NAME\" || true; \
+             fi; \
+             echo \"Resolved NAME=[$NAME]\"; echo \"Resolved IMG=[$IMG]\"; echo \"Resolved RES=[$RES]\"; \
+             printf 'sudo docker run -d --name %q -p 3030:3030 -v %q:/opt/app/resources --restart unless-stopped %q\\n' \"$NAME\" \"$RES\" \"$IMG\"; \
+             sudo docker run -d --name \"$NAME\" -p 3030:3030 -v \"$RES\":/opt/app/resources --restart unless-stopped \"$IMG\"; \
              sudo docker ps --filter name=\"$NAME\" --format \"running: {{.Names}} -> {{.Image}}\"'"
+
