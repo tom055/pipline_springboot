@@ -80,9 +80,9 @@ jobs:
         run: |
           ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no ${SSH_USERNAME}@${SSH_HOST} \
             "bash -lc 'set -euo pipefail; \
-             IMG=\"${APP_IMAGE}:${APP_VERSION}\"; \
-             NAME=\"${APP_NAME}\"; \
-             RES=\"${APP_RESOURCES}\"; \
+             IMG=\"${{ env.APP_IMAGE }}:${{ env.APP_VERSION }}\"; \
+             NAME=\"${{ env.APP_NAME }}\"; \
+             RES=\"${{ env.APP_RESOURCES }}\"; \
              if [ -z \"$NAME\" ] || [ -z \"$IMG\" ]; then \
                echo \"ERROR: NAME or IMG is empty.\"; \
                echo \"NAME=[$NAME]\"; echo \"IMG=[$IMG]\"; \
