@@ -76,5 +76,6 @@ jobs:
                sudo docker rm -f \"$NAME\" || true; \
              fi; \
              echo Running \"$NAME\" from \"$IMG\"; \
+             echo sudo docker run -d --name \"$NAME\" -p 3030:3030 -v /opt/docker/pip/resources:/opt/app/resources --restart unless-stopped \"$IMG\"; \
              sudo docker run -d --name \"$NAME\" -p 3030:3030 -v /opt/docker/pip/resources:/opt/app/resources --restart unless-stopped \"$IMG\"; \
              sudo docker ps --filter name=\"$NAME\" --format \"running: {{.Names}} -> {{.Image}}\"'"
