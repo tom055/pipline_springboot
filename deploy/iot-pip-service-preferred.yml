@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pip-yaml
+  namespace: pip-ns
+data:
+  application-pip.yml: |-
+    server:
+      port: 3030
+    spring:
+      application:
+        name: pipline-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: pip-app
+  name: pip-deploy
+  namespace: pip-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pip-app
+  template:
+    metadata:
+      labels:
+        app: pip-app
+      annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "false"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: pip-app
+                topologyKey: "kubernetes.io/hostname" #"topology.kubernetes.io/zone"
+      containers:
+        - image: 985539760410.dkr.ecr.us-east-1.amazonaws.com/pip-image:1.0.0
+          ports:
+            - name: http-pip
+              containerPort: 3030
+          name: pip-app-pod
+          volumeMounts:
+            - name: resources
+              mountPath: /opt/app/resources/application.yml
+              subPath: application-pip.yml
+      volumes:
+        - configMap:
+            name: pip-yaml
+          name: resources
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pip-svc
+  namespace: pip-ns
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  selector:
+    app: pip-app
+  ports:
+    - protocol: TCP
+      port: 3030
+      targetPort: 3030
+      name: http-pip

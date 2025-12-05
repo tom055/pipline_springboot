@@ -1,4 +1,4 @@
-# 使用仍在维护的 OpenJDK 8 运行时镜像（Eclipse Temurin）FROM openjdk:8
+# openjdk:8u342-jdk
 FROM eclipse-temurin:8-jre
 
 RUN ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime && \
@@ -20,4 +20,4 @@ COPY target/pipline.jar ./
 EXPOSE 3030
 
 # 容器启动时执行的命令--add-opens java.base/java.lang=ALL-UNNAMED
-ENTRYPOINT ["java", "-Xmx2G","-Xms512M", "-jar", "pipline.jar"]
+ENTRYPOINT ["java", "-Xmx2G","-Xms128M", "-jar", "pipline.jar"]
