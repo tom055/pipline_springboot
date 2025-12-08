@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notify-yaml
+  namespace: iot-ns
+data:
+  bootstrap.properties: |-
+    spring.application.name=notify-app
+    spring.cloud.nacos.config.file-extension=yaml
+    spring.cloud.nacos.config.encode=utf-8
+    spring.cloud.nacos.config.server-addr=172.31.21.149:8848
+    spring.cloud.nacos.discovery.server-addr=172.31.21.149:8848
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: notify-app
+  name: notify-deploy
+  namespace: iot-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notify-app
+  template:
+    metadata:
+      labels:
+        app: notify-app
+      annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "false"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: notify-app
+                topologyKey: "kubernetes.io/hostname"
+      containers:
+        - image: 985539760410.dkr.ecr.us-east-1.amazonaws.com/iot-notify:e06826ca0927
+          ports:
+            - name: http
+              containerPort: 9300
+            - name: dubbo
+              containerPort: 20881
+            - name: hessian
+              containerPort: 20882
+          name: iot-notify-pod
+          volumeMounts:
+            - name: resources
+              mountPath: /opt/app/resources/bootstrap.properties
+              subPath: bootstrap.properties
+      volumes:
+        - configMap:
+            name: notify-yaml
+          name: resources
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notify-svc
+  namespace: iot-ns
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  selector:
+    app: notify-app
+  ports:
+    - protocol: TCP
+      port: 9300
+      targetPort: 9300
+      name: http
+    - protocol: TCP
+      port: 20881
+      targetPort: 20881
+      name: dubbo
+    - protocol: TCP
+      port: 20882
+      targetPort: 20882
+      name: hessian

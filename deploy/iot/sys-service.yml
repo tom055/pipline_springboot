@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sys-yaml
+  namespace: iot-ns
+data:
+  bootstrap.properties: |-
+    spring.application.name=sys-app
+    spring.cloud.nacos.config.file-extension=yaml
+    spring.cloud.nacos.config.encode=utf-8
+    spring.cloud.nacos.config.server-addr=172.31.21.149:8848
+    spring.cloud.nacos.discovery.server-addr=172.31.21.149:8848
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: sys-app
+  name: sys-deploy
+  namespace: iot-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sys-app
+  template:
+    metadata:
+      labels:
+        app: sys-app
+      annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "false"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: sys-app
+                topologyKey: "kubernetes.io/hostname"
+      containers:
+        - image: 985539760410.dkr.ecr.us-east-1.amazonaws.com/iot-sys:e06826ca0927
+          ports:
+            - name: http
+              containerPort: 9100
+            - name: dubbo
+              containerPort: 20881
+            - name: hessian
+              containerPort: 20882
+          name: sys-app-pod
+          volumeMounts:
+            - name: resources
+              mountPath: /opt/app/resources/bootstrap.properties
+              subPath: bootstrap.properties
+      volumes:
+        - configMap:
+            name: sys-yaml
+          name: resources
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sys-svc
+  namespace: iot-ns
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  selector:
+    app: sys-app
+  ports:
+    - protocol: TCP
+      port: 9100
+      targetPort: 9100
+      name: http
+    - protocol: TCP
+      port: 20881
+      targetPort: 20881
+      name: dubbo
+    - protocol: TCP
+      port: 20882
+      targetPort: 20882
+      name: hessian
